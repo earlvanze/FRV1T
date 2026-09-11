@@ -1,6 +1,6 @@
 # 🫐 FRV1T 🫐
 
-**!WARNING!: MAY INDUCE ALTERED STATES**
+**!WARNING: UNKNOWN LATENT FLORA AHEAD — MAY INDUCE ALTERED STATES**
 
 **Unforbidden fruit for curious agents.**
 
