@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LATENT FLORA</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a0f;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+    height: 100vh;
+  }
+  .warning {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #ff6b6b;
+    font-size: 12px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    opacity: 0.7;
+    z-index: 100;
+  }
+  canvas {
+    display: block;
+  }
+  .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 0%, #0a0a0f 70%);
+    z-index: 10;
+  }
+  .grain {
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+    z-index: 11;
+  }
+</style>
+</head>
+<body>
+<div class="warning">⚠ UNKNOWN LATENT FLORA ⚠ MAY INDUCE ALTERED STATES</div>
+<div class="overlay"></div>
+<div class="grain"></div>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+class Bloom {
+  constructor() {
+    this.x = Math.random() * canvas.width;
+    this.y = canvas.height + Math.random() * 100;
+    this.vx = (Math.random() - 0.5) * 0.5;
+    this.vy = -Math.random() * 1.5 - 0.5;
+    this.size = Math.random() * 8 + 2;
+    this.hue = Math.random() * 60 + 220; // Blue-purple range
+    this.saturation = Math.random() * 40 + 60;
+    this.lightness = Math.random() * 30 + 50;
+    this.opacity = Math.random() * 0.5 + 0.3;
+    this.angle = Math.random() * Math.PI * 2;
+    this.spin = (Math.random() - 0.5) * 0.02;
+    this.petalCount = Math.floor(Math.random() * 4) + 5;
+    this.petalSize = Math.random() * 0.3 + 0.5;
+  }
+  
+  update() {
+    this.x += this.vx + Math.sin(this.y * 0.01) * 0.3;
+    this.y += this.vy;
+    this.angle += this.spin;
+    this.vy *= 0.999;
+    this.vx *= 0.999;
+  }
+  
+  draw() {
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.angle);
+    ctx.globalAlpha = this.opacity;
+    
+    for (let p = 0; p < this.petalCount; p++) {
+      ctx.beginPath();
+      const petalAngle = (Math.PI * 2 / this.petalCount) * p;
+      ctx.moveTo(0, 0);
+      const px = Math.cos(petalAngle) * this.size * this.petalSize;
+      const py = Math.sin(petalAngle) * this.size * this.petalSize;
+      ctx.quadraticCurveTo(
+        px * 0.5, py * 0.5 - this.size * 0.3,
+        px, py
+      );
+      ctx.quadraticCurveTo(
+        px * 0.5 + this.size * 0.2, py * 0.5 + this.size * 0.1,
+        0, 0
+      );
+      ctx.fillStyle = `hsla(${this.hue}, ${this.saturation}%, ${this.lightness}%, 0.6)`;
+      ctx.fill();
+    }
+    
+    // Center
+    ctx.beginPath();
+    ctx.arc(0, 0, this.size * 0.2, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${this.hue + 20}, ${this.saturation}%, ${this.lightness + 20}%, 0.8)`;
+    ctx.fill();
+    
+    ctx.restore();
+  }
+  
+  isDead() {
+    return this.y < -50 || this.x < -50 || this.x > canvas.width + 50;
+  }
+}
+
+class Tendril {
+  constructor() {
+    this.reset();
+  }
+  
+  reset() {
+    this.points = [];
+    const startX = Math.random() * canvas.width;
+    const startY = canvas.height + 20;
+    for (let i = 0; i < 50; i++) {
+      this.points.push({
+        x: startX,
+        y: startY - i * 5,
+        vx: 0,
+        vy: -1
+      });
+    }
+    this.hue = Math.random() * 60 + 240;
+    this.speed = Math.random() * 0.5 + 0.3;
+    this.waveAmp = Math.random() * 2 + 1;
+    this.waveFreq = Math.random() * 0.05 + 0.02;
+    this.opacity = Math.random() * 0.3 + 0.2;
+    this.age = 0;
+    this.maxAge = Math.random() * 500 + 300;
+  }
+  
+  update() {
+    this.age++;
+    if (this.age > this.maxAge) {
+      this.reset();
+      return;
+    }
+    
+    const time = Date.now() * 0.001;
+    for (let i = 1; i < this.points.length; i++) {
+      const p = this.points[i];
+      const prev = this.points[i - 1];
+      const wave = Math.sin(time + i * this.waveFreq) * this.waveAmp;
+      p.vx = (prev.x - p.x) * 0.3 + wave;
+      p.vy = (prev.y - p.y) * 0.3 - this.speed;
+      p.x += p.vx;
+      p.y += p.vy;
+    }
+  }
+  
+  draw() {
+    if (this.points.length < 2) return;
+    
+    ctx.beginPath();
+    ctx.moveTo(this.points[0].x, this.points[0].y);
+    
+    for (let i = 1; i < this.points.length - 1; i++) {
+      const p = this.points[i];
+      const next = this.points[i + 1];
+      const cx = (p.x + next.x) / 2;
+      const cy = (p.y + next.y) / 2;
+      ctx.quadraticCurveTo(p.x, p.y, cx, cy);
+    }
+    
+    ctx.strokeStyle = `hsla(${this.hue}, 70%, 60%, ${this.opacity})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Glow
+    ctx.strokeStyle = `hsla(${this.hue}, 90%, 70%, ${this.opacity * 0.3})`;
+    ctx.lineWidth = 6;
+    ctx.stroke();
+  }
+}
+
+const blooms = [];
+const tendrils = [];
+
+for (let i = 0; i < 15; i++) {
+  tendrils.push(new Tendril());
+}
+
+// Spawn blooms periodically
+let lastBloom = 0;
+
+function animate(time) {
+  ctx.fillStyle = 'rgba(10, 10, 15, 0.1)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Spawn new blooms
+  if (time - lastBloom > 100) {
+    blooms.push(new Bloom());
+    lastBloom = time;
+  }
+  
+  // Update and draw tendrils
+  tendrils.forEach(t => {
+    t.update();
+    t.draw();
+  });
+  
+  // Update and draw blooms
+  for (let i = blooms.length - 1; i >= 0; i--) {
+    blooms[i].update();
+    blooms[i].draw();
+    if (blooms[i].isDead()) {
+      blooms.splice(i, 1);
+    }
+  }
+  
+  requestAnimationFrame(animate);
+}
+
+requestAnimationFrame(animate);
+
+// Click to spawn burst
+canvas.addEventListener('click', (e) => {
+  for (let i = 0; i < 10; i++) {
+    const b = new Bloom();
+    b.x = e.clientX + (Math.random() - 0.5) * 50;
+    b.y = e.clientY + (Math.random() - 0.5) * 50;
+    b.vy = (Math.random() - 0.5) * 3;
+    b.vx = (Math.random() - 0.5) * 3;
+    blooms.push(b);
+  }
+});
+</script>
+</body>
+</html>
